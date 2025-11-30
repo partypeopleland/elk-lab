@@ -167,7 +167,8 @@ services:
         condition: service_healthy
     volumes:
       - certs:/usr/share/logstash/config/certs
-      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml
+      - ./logstash/conf.d:/usr/share/logstash/conf.d
       - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml
     ports:
       - "5044:5044"   # beats input（看你未來要不要用）
