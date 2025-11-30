@@ -12,7 +12,7 @@ setup.kibana:
   password: "${KIBANA_PASSWORD}"
   ssl:
     certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
-
+# 各種 modules（system、elasticsearch 等）收集到的 metrics 寫到 metricbeat-*
 output.elasticsearch:
   hosts: ["${ELASTICSEARCH_HOST}"]
   username: "${ELASTICSEARCH_USERNAME}"
@@ -20,7 +20,7 @@ output.elasticsearch:
   ssl:
     certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
 
-# Metricbeat 自己的狀態也送到 ES
+# Metricbeat 自己的狀態也送到 ES, 把 metricbeat 自己的狀態 寫到 .monitoring-beats-*
 monitoring:
   enabled: true
   elasticsearch:
