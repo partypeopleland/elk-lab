@@ -76,3 +76,70 @@ docker compose logs -f logstash
    ```bash
    ./start.sh
    ```
+
+## 正式環境部署 (使用自有憑證)
+
+當您拿到正式的 SSL 憑證（例如 `*.example.com`）時，請依照以下 SOP 進行替換。
+
+### 1. 準備檔案
+
+根據您提供的檔案範例，我們需要將其對應到 ELK 的格式：
+
+| 您的檔案 (範例) | 說明 | 對應 ELK 檔案 | 處理方式 |
+| :--- | :--- | :--- | :--- |
+| **example_site.crt** | 網站憑證 (Leaf Cert) | `es01.crt` / `kibana.crt` | 需要與 CA Bundle 合併 (見下文) |
+| **example_site.key** | 私鑰 (Private Key) | `es01.key` / `kibana.key` | 直接改名使用 |
+| **intermediate_ca.crt** | 中繼憑證鏈 (CA Bundle) | `ca.crt` | 直接改名使用 |
+
+> ⚠️ **注意**：`.pfx`, `.p7b` 等格式通常不需要，我們只需要 `.crt` (PEM) 和 `.key`。
+
+### 2. 合併憑證 (建立完整鏈)
+
+為了確保瀏覽器和服務能正確識別，建議將「網站憑證」與「中繼憑證」合併。
+(這與您在其他負載平衡器的操作類似，但**不需要**把 Key 放進去)。
+
+**操作方式 (使用文字編輯器)：**
+1. 打開一個新檔案。
+2. 貼上 **網站憑證** (`example_site.crt`) 的內容。
+3. 換行，接著貼上 **中繼憑證鏈** (`intermediate_ca.crt`) 的內容。
+4. 存檔為 `full_chain.crt`。
+
+### 3. 放置檔案
+
+請將準備好的檔案複製到 `certs` 目錄下的對應位置，並**覆蓋**或**替換**原有檔案：
+
+**目錄結構：**
+```text
+certs/
+├── ca/
+│   └── ca.crt          <-- 放 intermediate_ca.crt
+├── es01/
+│   ├── es01.crt        <-- 放 full_chain.crt (合併後的檔案)
+│   └── es01.key        <-- 放 example_site.key
+└── kibana/
+    ├── kibana.crt      <-- 放 full_chain.crt (同上)
+    └── kibana.key      <-- 放 example_site.key (同上)
+```
+
+### 4. 修正權限 (關鍵步驟！)
+
+Docker 內的服務使用特定使用者 ID (UID 1000) 運行。如果您是手動複製檔案進去，權限通常會變成您的使用者，導致服務無法讀取而啟動失敗。
+
+**請務必執行以下指令修正權限：**
+
+```bash
+# 1. 將所有憑證擁有者改為 UID 1000 (Elasticsearch/Kibana 使用者)
+sudo chown -R 1000:1000 certs/
+
+# 2. 設定檔案權限 (私鑰 600，憑證 644)
+sudo find certs -type f -name "*.key" -exec chmod 600 {} \;
+sudo find certs -type f -name "*.crt" -exec chmod 644 {} \;
+```
+
+### 5. 重啟服務
+
+完成上述步驟後，重啟容器以套用新憑證：
+
+```bash
+docker compose restart
+```

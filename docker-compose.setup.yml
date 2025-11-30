@@ -7,6 +7,8 @@ services:
     volumes:
       - ./certs:/usr/share/elasticsearch/config/certs
       - ./esdata:/usr/share/elasticsearch/data
+    environment:
+      - HOST_IP=${HOST_IP}
     user: "0"
     command: >
       bash -c '
@@ -24,7 +26,7 @@ services:
         fi;
         if [ ! -f config/certs/certs.zip ]; then
           echo "Creating certs";
-          printf "instances:\n  - name: es01\n    dns:\n      - es01\n      - localhost\n      - 172.21.14.106\n    ip:\n      - 127.0.0.1\n      - 172.21.14.106\n  - name: kibana\n    dns:\n      - kibana\n      - localhost\n      - 172.21.14.106\n    ip:\n      - 127.0.0.1\n      - 172.21.14.106\n" > config/certs/instances.yml;
+          printf "instances:\n  - name: es01\n    dns:\n      - es01\n      - localhost\n      - ${HOST_IP}\n    ip:\n      - 127.0.0.1\n      - ${HOST_IP}\n  - name: kibana\n    dns:\n      - kibana\n      - localhost\n      - ${HOST_IP}\n    ip:\n      - 127.0.0.1\n      - ${HOST_IP}\n" > config/certs/instances.yml;
           bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip \
             --in config/certs/instances.yml \
             --ca-cert config/certs/ca/ca.crt \
