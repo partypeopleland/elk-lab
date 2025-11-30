@@ -52,17 +52,22 @@ services:
         fi;
         echo "Setting file permissions"
         chown -R root:root config/certs;
-        find config/certs -type d -exec chmod 750 {} \;
-        find config/certs -type f -exec chmod 640 {} \;
+        find config/certs -type d -exec chmod 755 {} \;
+        find config/certs -type f -exec chmod 644 {} \;
         
+        # Elasticsearch certificates
         chown 1000:1000 config/certs/es01/es01.*
         chmod 600 config/certs/es01/es01.key
         chmod 644 config/certs/es01/es01.crt
-        chmod 644 config/certs/ca/ca.crt
-
+        
+        # Kibana certificates
         chown 1000:1000 config/certs/kibana/kibana.*
         chmod 600 config/certs/kibana/kibana.key
         chmod 644 config/certs/kibana/kibana.crt
+        
+        # CA certificate - make readable by all services (Logstash, Metricbeat, etc.)
+        chmod 644 config/certs/ca/ca.crt
+        chmod 600 config/certs/ca/ca.key
 
         echo "Waiting for Elasticsearch availability";
         until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
