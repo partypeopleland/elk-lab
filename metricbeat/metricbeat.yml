@@ -20,15 +20,11 @@ output.elasticsearch:
   ssl:
     certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
 
-# Metricbeat 自己的狀態也送到 ES, 把 metricbeat 自己的狀態 寫到 .monitoring-beats-*
+# Metricbeat 自我監控已關閉
+# 理由：生產環境應專注於業務數據監控，若沒有資料進來應該由告警觸發人工介入，
+# 而非依賴監控 Metricbeat 自身的狀態。這可以減少不必要的監控數據量。
 monitoring:
-  enabled: true
-  elasticsearch:
-    hosts: ["${ELASTICSEARCH_HOST}"]
-    username: "${ELASTICSEARCH_USERNAME}"
-    password: "${ELASTICSEARCH_PASSWORD}"
-    ssl:
-      certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+  enabled: false
 
 processors:
   - add_host_metadata: ~
