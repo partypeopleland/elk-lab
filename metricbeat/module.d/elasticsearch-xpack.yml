@@ -1,0 +1,17 @@
+- module: elasticsearch
+  metricsets:
+    - node
+    - node_stats
+    - index
+    - index_recovery
+    - index_summary
+    - shard
+    - ml_job
+  period: 10s
+  hosts: ["${ELASTICSEARCH_HOST}"]
+  username: "${ELASTICSEARCH_USERNAME}"
+  password: "${ELASTICSEARCH_PASSWORD}"
+  xpack.enabled: true
+  ssl:
+    certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+  enabled: true

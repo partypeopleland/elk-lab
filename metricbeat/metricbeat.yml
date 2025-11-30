@@ -1,0 +1,40 @@
+metricbeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+fields:
+  custom_host: "elk-lab"
+fields_under_root: true
+
+setup.kibana:
+  host: "${KIBANA_HOST}"
+  username: "${KIBANA_USERNAME}"
+  password: "${KIBANA_PASSWORD}"
+  ssl:
+    certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+
+output.elasticsearch:
+  hosts: ["${ELASTICSEARCH_HOST}"]
+  username: "${ELASTICSEARCH_USERNAME}"
+  password: "${ELASTICSEARCH_PASSWORD}"
+  ssl:
+    certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+
+# Metricbeat 自己的狀態也送到 ES
+monitoring:
+  enabled: true
+  elasticsearch:
+    hosts: ["${ELASTICSEARCH_HOST}"]
+    username: "${ELASTICSEARCH_USERNAME}"
+    password: "${ELASTICSEARCH_PASSWORD}"
+    ssl:
+      certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_process_metadata: ~
+
+logging.to_files: false
+logging.to_stderr: true

@@ -1,0 +1,11 @@
+- module: kibana
+  metricsets:
+    - stats
+  period: 10s
+  hosts: ["${KIBANA_HOST}"]
+  username: "${KIBANA_USERNAME}"
+  password: "${KIBANA_PASSWORD}"
+  xpack.enabled: true
+  ssl:
+    certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+  enabled: true

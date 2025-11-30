@@ -1,0 +1,10 @@
+- module: logstash
+  metricsets:
+    - node
+    - node_stats
+    - pipeline
+    - node_stats
+  period: 10s
+  hosts: ["http://logstash:9600"]
+  xpack.enabled: true
+  enabled: true

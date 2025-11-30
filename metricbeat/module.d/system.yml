@@ -1,0 +1,17 @@
+- module: system
+  period: 10s
+  metricsets:
+    - cpu
+    - load
+    - memory
+    - network
+    - process
+    - process_summary
+    - uptime
+    - socket
+  process.include_top_n:
+    by_cpu: 5
+    by_memory: 5
+  processes: ['.*']
+  hostfs: "${MB_HOSTFS}"
+  enabled: true
