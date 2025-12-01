@@ -4,7 +4,9 @@
 CERTS_DIR="./certs"
 
 # 偵測主機 IP (取第一個非 Loopback IP)
-export HOST_IP=$(hostname -I | awk '{print $1}')
+#export HOST_IP=$(hostname -I | awk '{print $1}')
+
+export HOST_IP="172.21.2.217"
 
 # 如果偵測失敗，預設為 localhost
 if [ -z "$HOST_IP" ]; then
