@@ -29,7 +29,7 @@ services:
       - xpack.security.transport.ssl.verification_mode=certificate
       - xpack.security.autoconfiguration.enabled=false
       - xpack.license.self_generated.type=${LICENSE}
-    mem_limit: ${MEM_LIMIT}
+    mem_limit: 4g
     ulimits:
       memlock:
         soft: -1
@@ -55,7 +55,7 @@ services:
     ports:
       - ${KIBANA_PORT}:5601
     user: "1000"
-    mem_limit: ${MEM_LIMIT}
+    mem_limit: 1.5g
     environment:
       - SERVER_SSL_ENABLED=true
       - SERVER_SSL_CERTIFICATE=/usr/share/kibana/config/certs/kibana/kibana.crt
@@ -97,6 +97,7 @@ services:
       # 9600 不對外開，只給 metricbeat 內部打即可
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    mem_limit: 1g
 
   metricbeat:
     image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
@@ -125,6 +126,7 @@ services:
       - KIBANA_USERNAME=elastic
       - KIBANA_PASSWORD=${ELASTIC_PASSWORD}
       - MB_HOSTFS=/hostfs
+    mem_limit: 512m
     command: [
       "metricbeat",
       "-e",
