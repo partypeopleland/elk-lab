@@ -1,2 +1,2 @@
 - pipeline.id: main
-  path.config: "/usr/share/logstash/conf.d/*.conf"
+  path.config: "/usr/share/logstash/conf.d/csp-lab.conf"
