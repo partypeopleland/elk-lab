@@ -4,8 +4,27 @@
 # Script Name: sync_json.sh
 # Description: Synchronizes two JSON files with specific rules (Add/Remove/Keep).
 #              Embeds necessary jq modules for structural synchronization.
-# Usage: ./sync_json.sh [source_file] [target_file]
+# Usage: ./sync_json.sh [source_file] [target_file] [--dry-run]
 # ==============================================================================
+
+# 參數解析
+POSITIONAL_ARGS=()
+DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --dry-run)
+      DRY_RUN=true
+      shift # past argument
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1")
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 # 設定變數
 SOURCE_FILE="${1:-source.json}"
@@ -27,6 +46,9 @@ cleanup() {
 trap cleanup EXIT
 
 echo -e "${YELLOW}=== JSON Sync Tool ===${NC}"
+if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}[DRY RUN MODE] 僅顯示預期變更，不寫入檔案。${NC}"
+fi
 echo "來源: $SOURCE_FILE"
 echo "目標: $TARGET_FILE"
 
@@ -44,9 +66,11 @@ fi
 
 # 3. 處理目標檔案與備份
 if [ -f "$TARGET_FILE" ]; then
-    BACKUP_NAME="${TARGET_FILE}.$(date +"%Y%m%d_%H%M%S").json"
-    cp "$TARGET_FILE" "$BACKUP_NAME"
-    echo -e "${GREEN}已建立備份: $BACKUP_NAME${NC}"
+    if [ "$DRY_RUN" = false ]; then
+        BACKUP_NAME="${TARGET_FILE}.$(date +"%Y%m%d_%H%M%S").json"
+        cp "$TARGET_FILE" "$BACKUP_NAME"
+        echo -e "${GREEN}已建立備份: $BACKUP_NAME${NC}"
+    fi
 else
     echo "{}" > "$TARGET_FILE"
     echo -e "${YELLOW}目標檔案不存在，已建立新檔案。${NC}"
@@ -127,13 +151,15 @@ EOF
 echo -e "${YELLOW}正在分析差異...${NC}"
 
 # 初始化報告
-echo "# Sync Report" > "$REPORT_FILE"
-echo "" >> "$REPORT_FILE"
-echo "**Target File:** $TARGET_FILE" >> "$REPORT_FILE"
-echo "**Date:** $DATE_STR" >> "$REPORT_FILE"
-echo "" >> "$REPORT_FILE"
-echo "---" >> "$REPORT_FILE"
-echo "" >> "$REPORT_FILE"
+if [ "$DRY_RUN" = false ]; then
+    echo "# Sync Report" > "$REPORT_FILE"
+    echo "" >> "$REPORT_FILE"
+    echo "**Target File:** $TARGET_FILE" >> "$REPORT_FILE"
+    echo "**Date:** $DATE_STR" >> "$REPORT_FILE"
+    echo "" >> "$REPORT_FILE"
+    echo "---" >> "$REPORT_FILE"
+    echo "" >> "$REPORT_FILE"
+fi
 
 # 分析新增的 Keys
 ADDED_KEYS=$(jq -n -r --slurpfile s "$SOURCE_FILE" --slurpfile t "$TARGET_FILE" -f "$TMP_DIR/find_added.jq")
@@ -142,18 +168,20 @@ ADDED_KEYS=$(jq -n -r --slurpfile s "$SOURCE_FILE" --slurpfile t "$TARGET_FILE" 
 REMOVED_KEYS=$(jq -n -r --slurpfile s "$SOURCE_FILE" --slurpfile t "$TARGET_FILE" -f "$TMP_DIR/find_removed.jq")
 
 # 寫入報告
-echo "## 🟢 Added Keys (Set to empty string)" >> "$REPORT_FILE"
-if [ -n "$ADDED_KEYS" ]; then
-    echo "$ADDED_KEYS" >> "$REPORT_FILE"
-else
-    echo "(None)" >> "$REPORT_FILE"
-fi
+if [ "$DRY_RUN" = false ]; then
+    echo "## 🟢 Added Keys (Set to empty string)" >> "$REPORT_FILE"
+    if [ -n "$ADDED_KEYS" ]; then
+        echo "$ADDED_KEYS" >> "$REPORT_FILE"
+    else
+        echo "(None)" >> "$REPORT_FILE"
+    fi
 
-echo -e "\n## 🔴 Removed Keys" >> "$REPORT_FILE"
-if [ -n "$REMOVED_KEYS" ]; then
-    echo "$REMOVED_KEYS" >> "$REPORT_FILE"
-else
-    echo "(None)" >> "$REPORT_FILE"
+    echo -e "\n## 🔴 Removed Keys" >> "$REPORT_FILE"
+    if [ -n "$REMOVED_KEYS" ]; then
+        echo "$REMOVED_KEYS" >> "$REPORT_FILE"
+    else
+        echo "(None)" >> "$REPORT_FILE"
+    fi
 fi
 
 # 顯示在螢幕上
@@ -174,16 +202,20 @@ fi
 # ==============================================================================
 # 5. 執行同步 (Sync Execution)
 # ==============================================================================
-echo -e "${YELLOW}正在同步 JSON 結構...${NC}"
+if [ "$DRY_RUN" = false ]; then
+    echo -e "${YELLOW}正在同步 JSON 結構...${NC}"
 
-jq -n --slurpfile s "$SOURCE_FILE" --slurpfile t "$TARGET_FILE" -f "$TMP_DIR/sync.jq" > "${TARGET_FILE}.tmp"
+    jq -n --slurpfile s "$SOURCE_FILE" --slurpfile t "$TARGET_FILE" -f "$TMP_DIR/sync.jq" > "${TARGET_FILE}.tmp"
 
-if [ $? -eq 0 ]; then
-    mv "${TARGET_FILE}.tmp" "$TARGET_FILE"
-    echo -e "${GREEN}同步完成！${NC}"
-    echo "報告已產生: $REPORT_FILE"
+    if [ $? -eq 0 ]; then
+        mv "${TARGET_FILE}.tmp" "$TARGET_FILE"
+        echo -e "${GREEN}同步完成！${NC}"
+        echo "報告已產生: $REPORT_FILE"
+    else
+        echo -e "${RED}同步失敗，jq 執行發生錯誤。${NC}"
+        rm -f "${TARGET_FILE}.tmp"
+        exit 1
+    fi
 else
-    echo -e "${RED}同步失敗，jq 執行發生錯誤。${NC}"
-    rm -f "${TARGET_FILE}.tmp"
-    exit 1
+    echo -e "${YELLOW}[DRY RUN] 不執行寫入操作。${NC}"
 fi
