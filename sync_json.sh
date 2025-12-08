@@ -4,7 +4,7 @@
 # Script Name: sync_json.sh
 # Description: Synchronizes two JSON files with specific rules (Add/Remove/Keep).
 #              Embeds necessary jq modules for structural synchronization.
-# Usage: ./sync_json.sh [source_file] [target_file] [--dry-run]
+# Usage: ./sync_json.sh [source_file] [target_file] [--dry]
 # ==============================================================================
 
 # 參數解析
@@ -13,7 +13,7 @@ DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --dry-run)
+    --dry)
       DRY_RUN=true
       shift # past argument
       ;;
