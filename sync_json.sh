@@ -122,25 +122,54 @@ sync($s[0]; {"v": $t[0]})
 EOF
 
 # ==============================================================================
-# 4. 產生報告 (Sync Report)
+# 4. 產生報告 (Sync Report) 與 顯示差異
 # ==============================================================================
-echo -e "${YELLOW}正在分析差異並產生報告...${NC}"
+echo -e "${YELLOW}正在分析差異...${NC}"
 
+# 初始化報告
 echo "# Sync Report" > "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
-echo "**Target File:** \
-$TARGET_FILE\
-**" >> "$REPORT_FILE"
+echo "**Target File:** $TARGET_FILE" >> "$REPORT_FILE"
 echo "**Date:** $DATE_STR" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
 echo "---" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
 
+# 分析新增的 Keys
+ADDED_KEYS=$(jq -n -r --slurpfile s "$SOURCE_FILE" --slurpfile t "$TARGET_FILE" -f "$TMP_DIR/find_added.jq")
+
+# 分析移除的 Keys
+REMOVED_KEYS=$(jq -n -r --slurpfile s "$SOURCE_FILE" --slurpfile t "$TARGET_FILE" -f "$TMP_DIR/find_removed.jq")
+
+# 寫入報告
 echo "## 🟢 Added Keys (Set to empty string)" >> "$REPORT_FILE"
-jq -n -r --slurpfile s "$SOURCE_FILE" --slurpfile t "$TARGET_FILE" -f "$TMP_DIR/find_added.jq" >> "$REPORT_FILE"
+if [ -n "$ADDED_KEYS" ]; then
+    echo "$ADDED_KEYS" >> "$REPORT_FILE"
+else
+    echo "(None)" >> "$REPORT_FILE"
+fi
 
 echo -e "\n## 🔴 Removed Keys" >> "$REPORT_FILE"
-jq -n -r --slurpfile s "$SOURCE_FILE" --slurpfile t "$TARGET_FILE" -f "$TMP_DIR/find_removed.jq" >> "$REPORT_FILE"
+if [ -n "$REMOVED_KEYS" ]; then
+    echo "$REMOVED_KEYS" >> "$REPORT_FILE"
+else
+    echo "(None)" >> "$REPORT_FILE"
+fi
+
+# 顯示在螢幕上
+if [ -n "$ADDED_KEYS" ]; then
+    echo -e "${GREEN}[新增 Keys]${NC}"
+    echo "$ADDED_KEYS"
+fi
+
+if [ -n "$REMOVED_KEYS" ]; then
+    echo -e "${RED}[刪除 Keys]${NC}"
+    echo "$REMOVED_KEYS"
+fi
+
+if [ -z "$ADDED_KEYS" ] && [ -z "$REMOVED_KEYS" ]; then
+    echo -e "${GREEN}沒有偵測到結構差異。${NC}"
+fi
 
 # ==============================================================================
 # 5. 執行同步 (Sync Execution)
