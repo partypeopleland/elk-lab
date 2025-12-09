@@ -134,6 +134,25 @@ services:
       "--strict.perms=false"
     ]
 
-# volumes:
-#   certs:
-#     driver: local
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:${STACK_VERSION}
+    container_name: apm-server
+    hostname: apm-server
+    depends_on:
+      es01:
+        condition: service_healthy
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./certs:/usr/share/apm-server/certs:ro
+    environment:
+      - ELASTICSEARCH_HOSTS=https://es01:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+    command: >
+      -e
+      --strict.perms=false
+      -E output.elasticsearch.hosts=["https://es01:9200"]
+      -E output.elasticsearch.username=elastic
+      -E output.elasticsearch.password="${ELASTIC_PASSWORD}"
+      -E output.elasticsearch.ssl.certificate_authorities=["/usr/share/apm-server/certs/ca/ca.crt"]
