@@ -5,6 +5,7 @@
 # Description: Synchronizes two JSON files with specific rules (Add/Remove/Keep).
 #              Embeds necessary jq modules for structural synchronization.
 # Usage: ./sync_json.sh [source_file] [target_file] [--dry]
+#        ./sync_json.sh [base_source] [env_source] [target_file] [--dry]
 # ==============================================================================
 
 # 參數解析
@@ -27,8 +28,18 @@ done
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 # 設定變數
-SOURCE_FILE="${1:-source.json}"
-TARGET_FILE="${2:-appsettings.json}"
+MERGE_REQUIRED=false
+
+if [ "$#" -eq 3 ]; then
+    BASE_SOURCE_FILE="$1"
+    ENV_SOURCE_FILE="$2"
+    TARGET_FILE="$3"
+    MERGE_REQUIRED=true
+else
+    SOURCE_FILE="${1:-source.json}"
+    TARGET_FILE="${2:-appsettings.json}"
+fi
+
 REPORT_FILE="sync_report.md"
 DATE_STR=$(date +"%Y-%m-%d %H:%M:%S")
 TMP_DIR=$(mktemp -d)
@@ -49,8 +60,6 @@ echo -e "${YELLOW}=== JSON Sync Tool ===${NC}"
 if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}[DRY RUN MODE] 僅顯示預期變更，不寫入檔案。${NC}"
 fi
-echo "來源: $SOURCE_FILE"
-echo "目標: $TARGET_FILE"
 
 # 1. 檢查 jq 是否安裝
 if ! command -v jq &> /dev/null; then
@@ -58,11 +67,40 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
-# 2. 檢查來源檔案
-if [ ! -f "$SOURCE_FILE" ]; then
-    echo -e "${RED}錯誤: 來源檔案 $SOURCE_FILE 不存在。${NC}"
-    exit 1
+# 2. 處理來源檔案 (合併或單一)
+if [ "$MERGE_REQUIRED" = true ]; then
+    echo "Base 來源: $BASE_SOURCE_FILE"
+    echo "Env  來源: $ENV_SOURCE_FILE"
+
+    if [ ! -f "$BASE_SOURCE_FILE" ]; then
+        echo -e "${RED}錯誤: Base 來源檔案 $BASE_SOURCE_FILE 不存在。${NC}"
+        exit 1
+    fi
+    if [ ! -f "$ENV_SOURCE_FILE" ]; then
+        echo -e "${RED}錯誤: Env 來源檔案 $ENV_SOURCE_FILE 不存在。${NC}"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}正在合併來源檔案...${NC}"
+    SOURCE_FILE="$TMP_DIR/merged_source.json"
+    # 使用 jq 合併兩個檔案 (Env 覆蓋 Base)
+    jq -n --slurpfile b "$BASE_SOURCE_FILE" --slurpfile e "$ENV_SOURCE_FILE" \
+        '$b[0] * $e[0]' > "$SOURCE_FILE"
+
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}錯誤: 合併來源檔案失敗。${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}來源檔案已合併。${NC}"
+else
+    echo "來源: $SOURCE_FILE"
+    if [ ! -f "$SOURCE_FILE" ]; then
+        echo -e "${RED}錯誤: 來源檔案 $SOURCE_FILE 不存在。${NC}"
+        exit 1
+    fi
 fi
+
+echo "目標: $TARGET_FILE"
 
 # 3. 處理目標檔案與備份
 if [ -f "$TARGET_FILE" ]; then
@@ -84,10 +122,10 @@ fi
 cat <<'EOF' > "$TMP_DIR/find_added.jq"
 def find_added(path; s_node; t_wrapper):
   if (s_node | type) == "object" then
-    reduce (s_node | keys_unsorted | .[]) as $k ([]; 
+    reduce (s_node | keys_unsorted | .[]) as $k ([];
       . + find_added(
-            (if path == "" then $k else path + "." + $k end); 
-            s_node[$k]; 
+            (if path == "" then $k else path + "." + $k end);
+            s_node[$k];
             (if (t_wrapper != null) and (t_wrapper.v | type) == "object" and (t_wrapper.v | has($k))
              then {"v": t_wrapper.v[$k]}
              else null
@@ -110,14 +148,14 @@ def find_removed(path; s_node; t_node):
          . + [(if path == "" then $k else path + "." + $k end)]
       else
          . + find_removed(
-               (if path == "" then $k else path + "." + $k end); 
-               s_node[$k]; 
+               (if path == "" then $k else path + "." + $k end);
+               s_node[$k];
                t_node[$k]
              )
       end
     )
   else
-    [] 
+    []
   end;
 
 find_removed(""; $s[0]; $t[0]) | .[]
@@ -128,14 +166,14 @@ cat <<'EOF' > "$TMP_DIR/sync.jq"
 def sync(s_node; t_wrapper):
   if (s_node | type) == "object" then
      reduce (s_node | keys_unsorted | .[]) as $k ({};
-       . + { 
+       . + {
          ($k): sync(
-           s_node[$k]; 
-           (if (t_wrapper != null) and (t_wrapper.v | type) == "object" and (t_wrapper.v | has($k)) 
-            then {"v": t_wrapper.v[$k]} 
-            else null 
+           s_node[$k];
+           (if (t_wrapper != null) and (t_wrapper.v | type) == "object" and (t_wrapper.v | has($k))
+            then {"v": t_wrapper.v[$k]}
+            else null
             end)
-         ) 
+         )
        }
      )
   else
